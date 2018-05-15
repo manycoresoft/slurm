@@ -75,6 +75,10 @@ typedef struct gres_slurmd_conf {
 	char *file;
 	uint8_t has_file;	/* non-zero if file is set, flag for RPC */
 
+	/* Device identifier */
+	char *identifier;
+	uint8_t has_identifier;	/* non-zero if identifier is set */
+
 	/* Name of this gres */
 	char *name;
 

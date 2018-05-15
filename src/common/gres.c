@@ -251,6 +251,7 @@ static uint64_t	_step_test(void *step_gres_data, void *job_gres_data,
 static int	_unload_gres_plugin(slurm_gres_context_t *plugin_context);
 static void	_validate_config(slurm_gres_context_t *context_ptr);
 static int	_validate_file(char *path_name, char *gres_name);
+static int	_validate_identifier(char *identifier, char *gres_name);
 static void	_validate_gres_node_cpus(gres_node_state_t *node_gres_ptr,
 					 int cpus_ctld, char *node_name);
 static int	_valid_gres_type(char *gres_name, gres_node_state_t *gres_data,
@@ -664,6 +665,7 @@ static void _destroy_gres_slurmd_conf(void *x)
 	xfree(p->cpus);
 	FREE_NULL_BITMAP(p->cpus_bitmap);
 	xfree(p->file);		/* Only used by slurmd */
+	xfree(p->identifier);
 	xfree(p->name);
 	xfree(p->type);
 	xfree(p);
@@ -776,6 +778,27 @@ static int _validate_file(char *path_name, char *gres_name)
 	return file_count;
 }
 
+static int _validate_identifier(char *identifier, char *gres_name)
+{
+	char *colon, *tail;
+	hostlist_t hl;
+	int identifier_count = 0;
+
+	colon = strchr(identifier, ':');
+	if (colon) {
+		tail = colon + 1;
+	} else {
+		tail = identifier;
+	}
+	hl = hostlist_create(tail);
+	if (hl == NULL)
+		fatal("can't parse Identifier=%s", identifier);
+	identifier_count = hostlist_count(hl);
+	hostlist_destroy(hl);
+
+	return identifier_count;
+}
+
 /*
  * Build gres_slurmd_conf_t record based upon a line from the gres.conf file
  */
@@ -789,6 +812,7 @@ static int _parse_gres_config(void **dest, slurm_parser_enum_t type,
 					 * (deprecated, use Cores) */
 		{"Cores" , S_P_STRING},	/* Cores to bind to Gres resource */
 		{"File",  S_P_STRING},	/* Path to Gres device */
+		{"Identifier", S_P_STRING}, /* Gres identifier */
 		{"Name",  S_P_STRING},	/* Gres name */
 		{"Type",  S_P_STRING},	/* Gres type (e.g. model name) */
 		{NULL}
@@ -839,6 +863,11 @@ static int _parse_gres_config(void **dest, slurm_parser_enum_t type,
 	if (s_p_get_string(&p->file, "File", tbl)) {
 		p->count = _validate_file(p->file, p->name);
 		p->has_file = 1;
+	}
+
+	if (s_p_get_string(&p->identifier, "Identifier", tbl)) {
+		p->count *= _validate_identifier(p->identifier, p->name);
+		p->has_identifier = 1;
 	}
 
 	if (s_p_get_string(&p->type, "Type", tbl) && !p->file) {
@@ -904,6 +933,7 @@ static int _parse_gres_config2(void **dest, slurm_parser_enum_t type,
 		{"CPUs" , S_P_STRING},	/* CPUs to bind to Gres resource */
 		{"Cores", S_P_STRING},	/* Cores to bind to Gres resource */
 		{"File",  S_P_STRING},	/* Path to Gres device */
+		{"Identifier", S_P_STRING}, /* Gres identifier */
 		{"Name",  S_P_STRING},	/* Gres name */
 		{"Type",  S_P_STRING},	/* Gres type (e.g. model name) */
 		{NULL}
